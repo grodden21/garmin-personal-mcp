@@ -1,3 +1,35 @@
+/**
+ * HTTP transport for one private Garmin account.
+ *
+ * ChatGPT signs in through Auth0. This server accepts only Auth0 access tokens
+ * whose signature, issuer, audience, scope, client, and owner are valid.
+ * The original high-entropy MCP_BEARER_TOKEN remains a legacy fallback.
+ * Never place Garmin credentials or OAuth secrets in this file.
+ */
+import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
+import { createPublicKey, timingSafeEqual, verify as verifySignature } from "node:crypto";
+import { TokenProvider, resolveApiKey } from "./auth.js";
+import { GarminClient } from "./client.js";
+import { buildServer } from "./server.js";
+
+const RESOURCE = "https://garmin-personal-mcp.onrender.com";
+const ISSUER = "https://dev-wmz5x4sh5cze36tj.us.auth0.com/";
+const CLIENT_ID = "3KgBIDZuVnxdBUusB7sv15Nz7Kud3VHL";
+const REQUIRED_SCOPE = "garmin:read";
+const METADATA_PATH = "/.well-known/oauth-protected-resource";
+const JWKS_URL = `${ISSUER}.well-known/jwks.json`;
+
+type Jwk = {
+  kid?: string;
+  kty?: string;
+  use?: string;
+  alg?: string;
+  n?: string;
+  e?: string;
+};
+let keyCache: { keys: Jwk[]; refreshedAt: number } | undefined;
+
+const challenge = `Bearer resource_metadata="${RESOURCE}${METADATA_PATH}", scope="${REQUIRED_SCOPE}"`;
 
 function unauthorized(): Response {
   return new Response("Unauthorized", {
