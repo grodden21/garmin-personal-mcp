@@ -158,3 +158,6 @@ export function createFetchHandler(opts: FetchHandlerOptions): (request: Request
       return await transport.handleRequest(request);
     } finally {
       void transport.close().catch(() => {});
+    }
+  };
+}
